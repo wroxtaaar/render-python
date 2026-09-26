@@ -158,7 +158,17 @@ async def task(task_id: str):
 
 @app.get("/api/seedr/files")
 async def files():
-    return await seedr_request("GET", "/files")
+    # Seedr's library is exposed as folder contents, not a /files endpoint.
+    # Use the configured library folder so the UI shows the same destination
+    # used by /api/seedr/add.
+    folder_id = SEEDR_FOLDER_ID.strip()
+    if not folder_id or not folder_id.isdigit():
+        raise HTTPException(500, "SEEDR_LIBRARY_FOLDER_ID must be configured")
+
+    return await seedr_request(
+        "GET",
+        "/folder/" + quote(folder_id, safe=""),
+    )
 
 
 @app.delete("/api/seedr/tasks/{task_id}")
