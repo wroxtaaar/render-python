@@ -67,7 +67,7 @@ export default function App() {
     try {
       setResults(
         await request<Result[]>(
-          `/api/search?q=${encodeURIComponent(query.trim())}`,
+          `/api/search?q=${encodeURIComponent(query.trim())}&limit=20`,
         ),
       );
     } catch (err: any) {
