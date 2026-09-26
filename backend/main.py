@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 from urllib.parse import quote
@@ -156,24 +157,79 @@ async def task(task_id: str):
     }
 
 
+async def seedr_list_folder(folder_id: str):
+    return await seedr_request(
+        "POST",
+        "/list_contents",
+        data={"content_type": "folder", "content_id": str(folder_id)},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+
 @app.get("/api/seedr/files")
 async def files():
-    # Seedr's v0.1 API exposes library contents through the list_contents
-    # function. It expects the folder ID as form data.
     folder_id = SEEDR_FOLDER_ID.strip()
     if not folder_id or not folder_id.isdigit():
         raise HTTPException(500, "SEEDR_LIBRARY_FOLDER_ID must be configured")
 
+    # Completed torrents are commonly represented by folders in Seedr.
+    # Walk the configured library folder recursively so the UI sees the
+    # actual files inside those torrent folders.
+    seen: set[str] = set()
+    collected: list[dict] = []
+
+    async def walk(current_id: str, path: str):
+        if current_id in seen:
+            return
+        seen.add(current_id)
+        data = await seedr_list_folder(current_id)
+        current_path = path or str(data.get("name") or "")
+
+        for item in data.get("files") or []:
+            if not isinstance(item, dict):
+                continue
+            file_id = item.get("folder_file_id") or item.get("id")
+            if file_id is None:
+                continue
+            collected.append({
+                "id": str(file_id),
+                "name": item.get("name") or "Unnamed file",
+                "size": int(item.get("size") or 0),
+                "folderId": str(current_id),
+                "folderPath": current_path or "/",
+                "url": None,
+            })
+
+        children = data.get("folders") or []
+        await asyncio.gather(*[
+            walk(
+                str(child.get("id")),
+                f"{current_path}/{child.get('name', '')}".replace("//", "/"),
+            )
+            for child in children
+            if isinstance(child, dict) and child.get("id") is not None
+        ])
+
+    try:
+        await walk(folder_id, "")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"Seedr library lookup failed: {exc}")
+
+    return {"files": collected, "count": len(collected), "folderId": folder_id}
+
+
+@app.get("/api/seedr/files/{file_id}/download")
+async def file_download(file_id: str):
+    if not file_id.isdigit():
+        raise HTTPException(400, "Invalid Seedr file ID")
     return await seedr_request(
         "POST",
-        "/list_contents",
-        data={
-            "content_type": "folder",
-            "content_id": folder_id,
-        },
+        "/fetch_file",
+        data={"folder_file_id": file_id},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-
 
 @app.delete("/api/seedr/tasks/{task_id}")
 async def delete_task(task_id: str):
