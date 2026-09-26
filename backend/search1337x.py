@@ -21,7 +21,7 @@ def clean(value: str) -> str:
 
 def size_bytes(value: str) -> int:
     match = re.search(
-        r"([0-9]+(?:.[0-9]+)?)s*(B|KB|MB|GB|TB)",
+        r"([0-9]+(?:\.[0-9]+)?)\s*(B|KB|MB|GB|TB)",
         value.replace(",", ""),
         re.I,
     )
@@ -67,39 +67,38 @@ async def fetch(path: str):
 def parse_rows(page: str, category: str):
     results = []
 
-    for row in re.findall(r"<tr[sS]*?</tr>", page, re.I):
+    for row in re.findall(r"<tr[\s\S]*?</tr>", page, re.I):
         match = re.search(
-            r'class=["'][^"']*coll-1s+name[^"']*["'][sS]*?'
-            r'<a[^>]+href=["'](/torrent/[^"']+)["'][^>]*>([sS]*?)</a>',
+            r"""class=["'][^"']*coll-1\s+name[^"']*["'][\s\S]*?
+                <a[^>]+href=["'](/torrent/[^"']+)["'][^>]*>([\s\S]*?)</a>""",
             row,
-            re.I,
+            re.I | re.X,
         )
         if not match:
             continue
 
         def field(class_name: str) -> str:
             found = re.search(
-                r'class=["'][^"']*' + class_name +
-                r'[^"']*["'][^>]*>([sS]*?)</td>',
+                r"""class=["'][^"']*""" + class_name + r"""[^"']*["'][^>]*>([\s\S]*?)</td>""",
                 row,
                 re.I,
             )
             return clean(found.group(1)) if found else ""
 
         try:
-            seeders = int(field(r"coll-2s+seeds") or 0)
+            seeders = int(field(r"coll-2\s+seeds") or 0)
         except ValueError:
             seeders = 0
 
         try:
-            leechers = int(field(r"coll-3s+leeches") or 0)
+            leechers = int(field(r"coll-3\s+leeches") or 0)
         except ValueError:
             leechers = 0
 
         results.append(
             {
                 "title": clean(match.group(2)),
-                "size": size_bytes(field(r"coll-4s+size")),
+                "size": size_bytes(field(r"coll-4\s+size")),
                 "seeders": seeders,
                 "leechers": leechers,
                 "category": category,
@@ -121,7 +120,7 @@ async def fetch_detail(client: httpx.AsyncClient, base: str, item: dict):
             return None
 
         match = re.search(
-            r'href=["'](magnet:?[^"']+)["']',
+            r"""href=["'](magnet:\?[^"']+)["']""",
             response.text,
             re.I,
         )
@@ -172,7 +171,7 @@ async def search_1337x(query: str, limit: int = 10):
 
     tokens = [
         token
-        for token in re.split(r"s+", query.lower())
+        for token in re.split(r"\s+", query.lower())
         if token and token not in {"the", "a", "an", "of", "and"}
     ]
 
