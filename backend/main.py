@@ -158,16 +158,20 @@ async def task(task_id: str):
 
 @app.get("/api/seedr/files")
 async def files():
-    # Seedr's library is exposed as folder contents, not a /files endpoint.
-    # Use the configured library folder so the UI shows the same destination
-    # used by /api/seedr/add.
+    # Seedr's v0.1 API exposes library contents through the list_contents
+    # function. It expects the folder ID as form data.
     folder_id = SEEDR_FOLDER_ID.strip()
     if not folder_id or not folder_id.isdigit():
         raise HTTPException(500, "SEEDR_LIBRARY_FOLDER_ID must be configured")
 
     return await seedr_request(
-        "GET",
-        "/folder/" + quote(folder_id, safe=""),
+        "POST",
+        "/list_contents",
+        data={
+            "content_type": "folder",
+            "content_id": folder_id,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
 
 
