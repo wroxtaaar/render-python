@@ -104,16 +104,26 @@ export default function App() {
 
   const loadSeedr = async () => {
     try {
-      const [q, t, f] = await Promise.all([
+      const [q, t] = await Promise.all([
         request<any>("/api/seedr/quota"),
-        request<any>("/api/seedr/tasks"),
-        request<any>("/api/seedr/files")
+        request<any>("/api/seedr/tasks")
       ]);
       setQuota(q);
       const list = Array.isArray(t?.tasks) ? t.tasks : [];
       setTasks(list);
       setTask(list[0] || null);
-      setFiles(Array.isArray(f?.files) ? f.files : []);
+
+      // Library files are optional. A temporary/unavailable files endpoint
+      // must not put a raw HTTP error banner over the whole application.
+      try {
+        setFilesLoading(true);
+        const f = await request<any>("/api/seedr/files");
+        setFiles(Array.isArray(f?.files) ? f.files : []);
+      } catch {
+        setFiles([]);
+      } finally {
+        setFilesLoading(false);
+      }
     } catch (err: any) {
       setError(err.message);
     }
