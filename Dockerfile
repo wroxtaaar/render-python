@@ -12,6 +12,8 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+ARG APP_VERSION=0565d451
+RUN echo "Building SeedFlow backend ${APP_VERSION}"
 COPY backend ./backend
 COPY --from=frontend /app/dist ./dist
 
