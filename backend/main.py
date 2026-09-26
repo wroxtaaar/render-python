@@ -70,7 +70,7 @@ async def search(q: str, limit: int = 10):
         return []
 
     try:
-        return await search_1337x(query, max(1, min(limit, 10)))
+        return await search_1337x(query, max(1, min(limit, 20)))
     except Exception as exc:
         raise HTTPException(502, f"1337x search failed: {exc}")
 
