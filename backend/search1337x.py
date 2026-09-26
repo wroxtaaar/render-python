@@ -156,17 +156,21 @@ async def fetch_detail(client: httpx.AsyncClient, base: str, item: dict):
 async def search_1337x(query: str, limit: int = 10):
     encoded = quote(query).replace("%20", "+")
 
-    async def search_category(category: str):
+    async def search_category(category: str, page_number: int):
         try:
-            return category, await fetch(
-                f"/category-search/{encoded}/{category}/1/"
+            return category, page_number, await fetch(
+                f"/category-search/{encoded}/{category}/{page_number}/"
             )
         except Exception:
-            return category, None
+            return category, page_number, None
 
+    # Search several result pages in both Movies and TV. 1337x can return
+    # only a small number of relevant matches on page 1, especially for
+    # TV-series queries, so a single-page search makes the UI look empty.
     pages = await asyncio.gather(
-        search_category("Movies"),
-        search_category("TV"),
+        *(search_category(category, page_number)
+          for category in ("Movies", "TV")
+          for page_number in range(1, 4))
     )
 
     tokens = [
@@ -177,7 +181,7 @@ async def search_1337x(query: str, limit: int = 10):
 
     candidates = []
 
-    for category, result in pages:
+    for category, _page_number, result in pages:
         if not result:
             continue
 
