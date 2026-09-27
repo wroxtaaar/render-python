@@ -547,20 +547,10 @@ export default function App() {
           return;
         }
 
-        // The complete torrent does not fit in Seedr. Fall back to the
-        // normal qBittorrent download rather than opening the file-selector
-        // again for a search result.
-        await handleAddMagnet(
-          trimmedSource || seedrSource,
-          'Downloads',
-          undefined,
-          undefined,
-          undefined,
-          'qbittorrent',
-          undefined,
-          undefined,
-          title
+        setSeedrAddBlockedNotice(
+          'This torrent is larger than the remaining Seedr space. Selective file transfer will be wired to the Seedr backend next.'
         );
+        openAddMagnet(seedrSource);
         return;
       } catch (error: any) {
         setSeedrAddBlockedNotice(
