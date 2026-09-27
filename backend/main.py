@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -21,6 +22,13 @@ except ValueError:
 
 DIST = Path(__file__).resolve().parent.parent / "dist"
 app = FastAPI(title="SeedFlow")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AddRequest(BaseModel):
@@ -152,8 +160,13 @@ async def task(task_id: str):
 
     return {
         "task": data,
+        "name": data.get("name") or data.get("title"),
+        "folderName": data.get("folder_name") or data.get("folderName"),
+        "folderId": data.get("folder_id") or data.get("folderId"),
         "status": "completed" if done else "downloading",
         "progress": max(0, min(100, progress)),
+        "downloadUrl": data.get("download_url") or data.get("downloadUrl"),
+        "files": data.get("files") or [],
     }
 
 
