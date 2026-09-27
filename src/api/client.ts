@@ -55,7 +55,7 @@ export const api = {
       throw new Error(data?.error || data?.message || body || ('Torrent search failed (HTTP ' + res.status + ')'));
     }
 
-    return Array.isArray(data?.results) ? data.results : [];
+    return Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
   },
 
   async addSearchTorrent(source: string, size: number, infoHash?: string): Promise<any> {
@@ -221,7 +221,16 @@ export const api = {
       throw error;
     }
 
-    const taskId = data?.task_id ?? data?.id ?? data?.task?.id ?? data?.task?.task_id ?? null;
+    let taskId = data?.task_id ?? data?.id ?? data?.task?.id ?? data?.task?.task_id ?? null;
+    if (taskId == null) {
+      try {
+        const taskRes = await apiFetch('/api/seedr/tasks');
+        const taskBody = await taskRes.json().catch(() => null);
+        const tasks = Array.isArray(taskBody) ? taskBody : (Array.isArray(taskBody?.tasks) ? taskBody.tasks : []);
+        const latest = tasks[0];
+        taskId = latest?.id ?? latest?.task_id ?? latest?.taskId ?? null;
+      } catch {}
+    }
     return {
       backend: 'seedr',
       seedrTaskId: taskId,
